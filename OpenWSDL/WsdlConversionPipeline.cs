@@ -8,8 +8,7 @@ internal static class WsdlConversionPipeline
     {
         try
         {
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("OpenWSDL/1.0 (+https://github.com)");
+            using var http = WsdlHttpClient.Create();
 
             var loader = new WsdlLoader(http);
             var documents = await loader.LoadAllAsync(wsdlUrl).ConfigureAwait(false);
