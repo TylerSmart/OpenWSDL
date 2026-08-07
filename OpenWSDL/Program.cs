@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Invocation;
 using OpenWSDL;
 
 if (args.Length == 0)
@@ -10,7 +11,11 @@ var wsdlArg = new Argument<string?>("wsdl-url", "WSDL URL (http/https). Omit to 
 };
 var outOpt = new Option<string?>(new[] { "--output", "-o" }, "Output OpenAPI 3 JSON file path");
 var postmanOpt = new Option<string?>(new[] { "--postman", "-p" },
-    "Output Postman Collection v2.1 JSON (one request per SOAP operation, headers preset)");
+    "Output Postman Collection v2.1 JSON (one request per SOAP operation, headers preset). " +
+    "Optional path; defaults to {service-name}.postman_collection.json in the current directory.")
+{
+    Arity = ArgumentArity.ZeroOrOne,
+};
 var titleOpt = new Option<string?>("--title", "API / collection title (default: WSDL service name, or host)");
 
 var root = new RootCommand(
@@ -24,15 +29,26 @@ var root = new RootCommand(
     titleOpt,
 };
 
-root.SetHandler(async (wsdlUrl, output, postman, title) =>
+root.SetHandler(async (InvocationContext context) =>
     {
-        Environment.ExitCode = await RunCliAsync(wsdlUrl, output, postman, title);
-    },
-    wsdlArg, outOpt, postmanOpt, titleOpt);
+        var parseResult = context.ParseResult;
+        var wsdlUrl = parseResult.GetValueForArgument(wsdlArg);
+        var output = parseResult.GetValueForOption(outOpt);
+        var postman = parseResult.GetValueForOption(postmanOpt);
+        var title = parseResult.GetValueForOption(titleOpt);
+        var postmanRequested = parseResult.FindResultFor(postmanOpt) is not null;
+
+        context.ExitCode = await RunCliAsync(wsdlUrl, output, postman, postmanRequested, title);
+    });
 
 return await root.InvokeAsync(args);
 
-static async Task<int> RunCliAsync(string? wsdlUrlFromArgs, string? outputPath, string? postmanPath, string? title)
+static async Task<int> RunCliAsync(
+    string? wsdlUrlFromArgs,
+    string? outputPath,
+    string? postmanPath,
+    bool postmanRequested,
+    string? title)
 {
     var wsdlUrl = ResolveWsdlUri(wsdlUrlFromArgs);
     if (wsdlUrl is null)
@@ -49,6 +65,9 @@ static async Task<int> RunCliAsync(string? wsdlUrlFromArgs, string? outputPath, 
     }
 
     var displayTitle = string.IsNullOrWhiteSpace(title) ? ctx.DefaultTitle : title.Trim();
+
+    if (postmanRequested && string.IsNullOrWhiteSpace(postmanPath))
+        postmanPath = FileNameHelper.DefaultPostmanPath(displayTitle);
 
     var writeOpenApi = !string.IsNullOrWhiteSpace(outputPath);
     var writePostman = !string.IsNullOrWhiteSpace(postmanPath);

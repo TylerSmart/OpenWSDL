@@ -112,7 +112,7 @@ internal static class InteractiveUi
             Directory.CreateDirectory(outDir);
         }
 
-        var baseDefault = SanitizeFileName(ctx.DefaultTitle);
+        var baseDefault = FileNameHelper.SanitizeBaseName(ctx.DefaultTitle);
         var baseName = AnsiConsole.Prompt(
             new TextPrompt<string>("[green]Base file name[/] [grey](no extension; used for .openapi.json / .postman_collection.json)[/]:")
                 .DefaultValue(baseDefault)
@@ -120,13 +120,13 @@ internal static class InteractiveUi
                 .ValidationErrorMessage("[red]Invalid file name[/]")
                 .Validate(n =>
                 {
-                    var t = SanitizeFileName(n.Trim());
+                    var t = FileNameHelper.SanitizeBaseName(n.Trim());
                     return string.IsNullOrEmpty(t)
                         ? ValidationResult.Error("Enter a non-empty name")
                         : ValidationResult.Success();
                 }));
 
-        baseName = SanitizeFileName(baseName.Trim());
+        baseName = FileNameHelper.SanitizeBaseName(baseName.Trim());
 
         var title = AnsiConsole.Prompt(
             new TextPrompt<string>("[green]API / collection title[/] [grey](OpenAPI info.title + Postman info.name)[/]:")
@@ -164,11 +164,4 @@ internal static class InteractiveUi
         return 0;
     }
 
-    private static string SanitizeFileName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = name.Select(c => invalid.Contains(c) ? '_' : c).ToArray();
-        var s = new string(chars).Trim();
-        return string.IsNullOrEmpty(s) ? "service" : s;
-    }
 }
