@@ -14,7 +14,6 @@ internal static class PostmanCollectionExporter
         IReadOnlyList<SoapOperationDescriptor> operations,
         IReadOnlyDictionary<string, string> bodyByOperationName)
     {
-        // Extract base URL from the first operation
         var baseUrl = operations.FirstOrDefault()?.ServiceLocation ?? "http://localhost";
         var baseUri = new Uri(baseUrl);
         var baseUrlValue = $"{baseUri.Scheme}://{baseUri.Authority}";
@@ -35,16 +34,6 @@ internal static class PostmanCollectionExporter
                 Schema = CollectionSchema,
             },
             Item = items,
-            Auth = new PostmanAuth
-            {
-                Type = "ntlm",
-                Ntlm = new List<PostmanAuthProperty>
-                {
-                    new() { Key = "username", Value = "{{ntlm_username}}", Type = "string" },
-                    new() { Key = "password", Value = "{{ntlm_password}}", Type = "string" },
-                    new() { Key = "domain", Value = "{{ntlm_domain}}", Type = "string" },
-                }
-            },
             Variable = new List<PostmanVariable>
             {
                 new()
@@ -53,24 +42,6 @@ internal static class PostmanCollectionExporter
                     Value = baseUrlValue,
                     Type = "string",
                 },
-                new()
-                {
-                    Key = "ntlm_username",
-                    Value = "",
-                    Type = "string",
-                },
-                new()
-                {
-                    Key = "ntlm_password",
-                    Value = "",
-                    Type = "string",
-                },
-                new()
-                {
-                    Key = "ntlm_domain",
-                    Value = "",
-                    Type = "string",
-                }
             },
         };
 
@@ -150,18 +121,17 @@ internal static class PostmanCollectionExporter
     {
         var u = new Uri(serviceLocation.Trim());
         var path = u.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
-        
-        // Build URL with variable substitution
+
         var pathStr = path.Count > 0 ? "/" + string.Join("/", path) : "";
         var rawUrl = $"{{{{baseUrl}}}}{pathStr}";
-        
+
         return new PostmanUrl
         {
             Raw = rawUrl,
-            Protocol = null, // Protocol is part of baseUrl variable
+            Protocol = null,
             Host = new List<string> { "{{baseUrl}}" },
             Path = path,
-            Port = null, // Port is part of baseUrl variable
+            Port = null,
         };
     }
 
@@ -169,10 +139,7 @@ internal static class PostmanCollectionExporter
     {
         public PostmanInfo Info { get; set; } = null!;
         public List<PostmanItem> Item { get; set; } = new();
-        
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public PostmanAuth? Auth { get; set; }
-        
+
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<PostmanVariable>? Variable { get; set; }
     }
@@ -230,30 +197,15 @@ internal static class PostmanCollectionExporter
     private sealed class PostmanUrl
     {
         public string Raw { get; set; } = "";
-        
+
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Protocol { get; set; }
-        
+
         public List<string> Host { get; set; } = new();
         public List<string> Path { get; set; } = new();
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Port { get; set; }
-    }
-
-    private sealed class PostmanAuth
-    {
-        public string Type { get; set; } = "";
-        
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public List<PostmanAuthProperty>? Ntlm { get; set; }
-    }
-
-    private sealed class PostmanAuthProperty
-    {
-        public string Key { get; set; } = "";
-        public string Value { get; set; } = "";
-        public string Type { get; set; } = "string";
     }
 
     private sealed class PostmanVariable
